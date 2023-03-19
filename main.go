@@ -17,6 +17,7 @@ import (
 const (
 	MsgTypeJoin      = "join"
 	MsgTypeSignal    = "signal"
+	MsgTypeStart     = "start"
 	MsgTypeSdp       = "sdp"
 	MsgTypeCandidate = "candidate"
 	MsgTypeError     = "error"
@@ -220,7 +221,7 @@ func (u *User) HandleMsg(msg *Message) {
 func (u *User) HandleTextMsg(msg *Message) {
 	req := &CommonRequest{}
 	if err := json.Unmarshal(msg.Data, req); err != nil {
-		u.NotifyError("parse request fail")
+		u.Answer(MsgTypeError, "parse request fail")
 		log.Println("parse requst fail", string(msg.Data), err)
 		return
 	}
@@ -245,7 +246,7 @@ func (u *User) OnJoin() {
 	if usernum == 0 && u.Room.WaitNum.CompareAndSwap(usernum, 1) {
 		// 先join的用户
 		u.Role = RoleCaller
-		u.Answer("success")
+		u.Answer(MsgTypeJoin, "success")
 	} else {
 		u.Role = RoleCallee
 		// 后join的用户进入房间之后，通知双方进行后续流程
@@ -277,22 +278,14 @@ func (u *User) SendToAnother(msg *Message) {
 
 func (u *User) StartCall() {
 	if u.Role == RoleCaller {
-		u.Answer("StartActive")
+		u.Answer(MsgTypeStart, "StartActive")
 	} else {
-		u.Answer("StartPassive")
+		u.Answer(MsgTypeStart, "StartPassive")
 	}
 }
 
-func (u *User) Answer(res string) {
-	response := &CommonResponse{Type: MsgTypeSignal, RoomId: u.Room.Id, Data: res}
-	if data, err := json.Marshal(response); err == nil {
-		u.Send(&Message{MsgType: websocket.TextMessage, Data: data})
-		return
-	}
-}
-
-func (u *User) NotifyError(why string) {
-	response := &CommonResponse{Type: MsgTypeError, RoomId: u.Room.Id, Data: why}
+func (u *User) Answer(cmd string, res string) {
+	response := &CommonResponse{Type: cmd, RoomId: u.Room.Id, Data: res}
 	if data, err := json.Marshal(response); err == nil {
 		u.Send(&Message{MsgType: websocket.TextMessage, Data: data})
 		return

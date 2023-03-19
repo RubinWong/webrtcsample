@@ -1,4 +1,16 @@
 
+const configuration = {
+    iceServers: [{
+        // urls: 'stun:stun.l.google.com:19302'
+        urls: 'stun:127.0.0.1:3478'
+    }],
+};
+
+let roomId = location.pathname.split('/');
+roomId = roomId[roomId.length - 1];
+let peerId = Math.floor(Math.random() * 0xFFFFFF).toString(16).substring(1);
+console.log(peerId);
+
 class EventEmitter {
     constructor() {
         this.listeners = {};
@@ -12,21 +24,6 @@ class EventEmitter {
         }
     }
 }
-
-
-// const ms = require('ms');
-let roomId = location.pathname.split('/');
-roomId = roomId[roomId.length - 1];
-// console.log(roomId);
-let peerId = Math.floor(Math.random() * 0xFFFFFF).toString(16).substring(1);
-console.log(peerId);
-
-const configuration = {
-    iceServers: [{
-        // urls: 'stun:stun.l.google.com:19302'
-        urls: 'stun:127.0.0.1:3478'
-    }],
-};
 
 class CommonMsg {
     constructor(mtype, room, peer, msg) {
@@ -46,7 +43,10 @@ class Dragon extends EventEmitter {
         let url = "ws://" + location.hostname + ":" + location.port + "/v1/websocket/" + roomId + "/" + peerId;
         console.log(url);
         this.ws = new WebSocket(url);
-        this.ws.onopen = (e) => { this.emit("open", e); };
+        this.ws.onopen = (e) => {
+            console.log("【signal】websocket connected");
+            this.emit("open", e);
+        };
         this.ws.onclose = (e) => { console.log(e.data); };
         this.ws.onerror = (e) => { console.log(e.data); };
     }
@@ -56,20 +56,21 @@ class Dragon extends EventEmitter {
         this.ws.onmessage = (e) => {
             let msg = JSON.parse(e.data);
             if (msg.peer == peerId) {
-                console.log("ignore self msg");
+                // console.log("ignore self msg");
                 return;
             }
-            console.log(msg.data);
+            console.log("【signal】", msg.type, msg.data);
             if (msg.type == "sdp") {
                 room.emit('sdp', msg);
             } else if (msg.type == "candidate") {
                 room.emit('candidate', msg);
-            } else if (msg.type == "signal") {
+            } else if (msg.type == "start") {
                 room.emit('open', msg);
             }
         };
 
         this.sendMessage('join', "");
+        console.log("【signal】send join request");
         return room;
     }
 
@@ -82,12 +83,8 @@ class Dragon extends EventEmitter {
     }
 }
 
-function updateLocalStatus(status) {
-    let element = document.getElementById("localStatus");
-    element.innerText = status;
-}
-
 function onSuccess() { }
+
 function onError(e) {
     console.log(e);
 }
@@ -99,9 +96,10 @@ let pc;
 drone.on('open', () => {
     room = drone.subscribe(roomId);
     room.on('open', msg => {
+        console.log("【signal】peer arrived, room on open", msg.data);
         if (msg.data === "StartActive") {
             createWebRTC(true);
-        } else {
+        } else if (msg.data === "StartPassive") {
             createWebRTC(false);
         }
     });
@@ -112,41 +110,52 @@ function sendMessage(mtype, msg) {
 }
 
 function createWebRTC(isOfferer) {
+    console.log("【rtc】createWebRTC");
     pc = new RTCPeerConnection(configuration);
     // 'onicecandidate' notifies us whenever an ICE agent needs to deliver a
     // message to the other peer through the signaling server
-
-    addTracks();
     pc.onicecandidate = event => {
-        console.log("receive new candidate");
+        console.log("【rtc】my new candidate from stun server");
         if (event.candidate) {
             sendMessage("candidate", event.candidate);
         }
     };
 
-    if (isOfferer) {
-        pc.onnegotiationneeded = async () => {
-            console.log("onnegotiationneeded create offer");
-            createOffer();
-        };
-    }
-
-    // When a remote stream arrives display it in the #remoteVideo element
-    pc.ontrack = event => {
-        console.log("ontrack");
-        const stream = event.streams[0];
-        if (!remoteVideo.srcObject || remoteVideo.srcObject.id !== stream.id) {
-            remoteVideo.srcObject = stream;
-            console.log("remote track added", stream.id);
+    pc.onnegotiationneeded = async () => {
+        if (isOfferer) {
+            console.log("【rtc】onnegotiationneeded create offer");
+            pc.createOffer().then(localDescCreated).catch(onError);
         }
     };
 
+    // When a remote stream arrives display it in the #remoteVideo element
+    pc.ontrack = event => {
+        console.log("【rtc】receive remote ontrack");
+        const stream = event.streams[0];
+        if (!remoteVideo.srcObject || remoteVideo.srcObject.id !== stream.id) {
+            remoteVideo.srcObject = stream;
+            console.log("【rtc】remote track added", stream.id);
+        }
+    };
+
+    navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: true,
+    }).then(stream => {
+        // Display your local video in #localVideo element
+        localVideo.srcObject = stream;
+        stream.getTracks().forEach(track => {
+            pc.addTrack(track, stream);
+            console.log("【rtc】local addTrack", track.id, stream.id, track.kind);
+        });
+    }, onError);
+
     room.on('sdp', msg => {
         // This is called after receiving an offer or answer from another peer
-        console.log("receive peer sdp", msg);
+        console.log("【signal】receive peer sdp", msg);
         pc.setRemoteDescription(new RTCSessionDescription(msg.data), () => {
             // When receiving an offer lets answer it
-            console.log("remote sdp set");
+            console.log("【signal】remote sdp set");
             if (msg.data.type === 'offer') {
                 pc.createAnswer().then(localDescCreated).catch(onError);
             }
@@ -156,37 +165,19 @@ function createWebRTC(isOfferer) {
     room.on('candidate', msg => {
         pc.addIceCandidate(new RTCIceCandidate(msg.data))
             .then(() => {
-                console.log("Add New Peer IceCandidate");
+                console.log("【signal】Add New Peer IceCandidate");
             }).catch(onError);
     });
 }
 
-function createOffer() {
-    pc.createOffer().then(localDescCreated).catch(onError);
-}
-
 function localDescCreated(desc) {
-    console.log("local sdp created");
+    console.log("【rtc】local sdp created");
     pc.setLocalDescription(
         desc,
         () => {
             sendMessage('sdp', pc.localDescription);
-            console.log("local sdp set");
+            console.log("【rtc】local sdp set");
         },
         onError
     );
-}
-
-function addTracks() {
-    navigator.mediaDevices.getUserMedia({
-        // audio: true,
-        video: true,
-    }).then(stream => {
-        // Display your local video in #localVideo element
-        localVideo.srcObject = stream;
-        stream.getTracks().forEach(track => {
-            pc.addTrack(track, stream);
-            console.log("local PC addTrack", track.id, stream.id, track.kind);
-        });
-    }, onError);
 }

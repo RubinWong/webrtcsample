@@ -50,6 +50,13 @@ func main() {
 		ctx.HTML(http.StatusOK, "signal2.html", nil)
 	})
 
+	rg.GET("/signal4/:room_id", func(ctx *gin.Context) {
+		ctx.HTML(http.StatusOK, "signal4.html", nil)
+	})
+
+	rg.GET("/signal5/:room_id", func(ctx *gin.Context) {
+		ctx.HTML(http.StatusOK, "signal5.html", nil)
+	})
 	go stund.ListenUDPAndServe("udp", ":3478")
 
 	g.Run(":8080")

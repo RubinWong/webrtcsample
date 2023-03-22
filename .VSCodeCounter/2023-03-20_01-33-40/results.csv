@@ -1,0 +1,12 @@
+"filename", "language", "Go", "Go Checksum File", "HTML", "JavaScript", "Go Module File", "comment", "blank", "total"
+"/Users/eliterubin/codeLib/projects/golang/websocket/go.mod", "Go Module File", 0, 0, 0, 0, 34, 0, 5, 39
+"/Users/eliterubin/codeLib/projects/golang/websocket/go.sum", "Go Checksum File", 0, 91, 0, 0, 0, 0, 1, 92
+"/Users/eliterubin/codeLib/projects/golang/websocket/html/example.html", "HTML", 0, 0, 16, 0, 0, 0, 3, 19
+"/Users/eliterubin/codeLib/projects/golang/websocket/html/signal.html", "HTML", 0, 0, 19, 0, 0, 0, 3, 22
+"/Users/eliterubin/codeLib/projects/golang/websocket/html/signal2.html", "HTML", 0, 0, 19, 0, 0, 0, 3, 22
+"/Users/eliterubin/codeLib/projects/golang/websocket/main.go", "Go", 25, 0, 0, 0, 0, 286, 7, 318
+"/Users/eliterubin/codeLib/projects/golang/websocket/statics/example.js", "JavaScript", 0, 0, 0, 101, 0, 18, 15, 134
+"/Users/eliterubin/codeLib/projects/golang/websocket/statics/signal.js", "JavaScript", 0, 0, 0, 154, 0, 8, 21, 183
+"/Users/eliterubin/codeLib/projects/golang/websocket/statics/signal2.js", "JavaScript", 0, 0, 0, 145, 0, 12, 18, 175
+"/Users/eliterubin/codeLib/projects/golang/websocket/stund/stun.go", "Go", 102, 0, 0, 0, 0, 14, 12, 128
+"Total", "-", 127, 91, 54, 400, 34, 338, 88, 1132
